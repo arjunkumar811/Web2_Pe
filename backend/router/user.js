@@ -1,15 +1,56 @@
 const express = require("express");
 const userRouter = require("./user")
+const zod = require("zod");
+const { User } = require("../db");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../config");
 
 router.use("/user", userRouter);
 
 module.exports = router;
+const SignupSchema = zod.object({
+    username: zod.string(),
+    password: zod.string(),
+    firstName: zod.string(),
+    lastName: zod.string(),
+})
+router.get("signup", async (req, res) => {
+    const body = req.body;
+    const {success} = SignupSchema.safeParse(req.body);
+    if(!success) {
+        return res.json({
+            message: "Email already taken/ Incorrect Input"
+        })
+    }
 
-router.get("signup", (req, res) {
-    const username = req.body.username;
-    const password = req.body.password;
+   const existingUser  = await User.findOne({
+    username: req.body.username
+   })
 
+   if (existingUser) {
+      return res.status(411).json({
+            message: "Email already taken/Incorrect inputs"
+        })
+   }
+
+   const user = await User.create({
+    username: req.body.username,
+    password: req.body.password,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+   })
+
+const userid = user._id;
+
+const token = jwt.sign({
+    userid
+}, JWT_SECRET);
+
+res.json({
+    message: "User created Successfully",
+    token: token
+})
    
 })
 
